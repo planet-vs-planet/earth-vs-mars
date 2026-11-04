@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>フルーツパニック</title>
+<style>
+:root{
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg1:#ffe2ef;--bg2:#fff3c9;--panel:#ffffffd9;--text:#4a2a3d;--sub:#8a6477;--board:#fff;--accent:#ff5c8a;
+  --c0:#ffd0da;--c1:#ffe0b3;--c2:#e3d0ff;--c3:#d3f5c2;--c4:#fff7a8;--c5:#ffd9cc;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg1:#2a1530;--bg2:#1f2447;--panel:#3a2445e6;--text:#fff0f6;--sub:#d7b5c8;--board:#33243f;--accent:#ff7aa2;
+    --c0:#6e3347;--c1:#6e5030;--c2:#4f3a78;--c3:#3b6040;--c4:#6e6730;--c5:#6e4136;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg1:#2a1530;--bg2:#1f2447;--panel:#3a2445e6;--text:#fff0f6;--sub:#d7b5c8;--board:#33243f;--accent:#ff7aa2;
+  --c0:#6e3347;--c1:#6e5030;--c2:#4f3a78;--c3:#3b6040;--c4:#6e6730;--c5:#6e4136;color-scheme:dark;
+}
+html,body{height:100%;margin:0}
+body{background:linear-gradient(160deg,var(--bg1),var(--bg2));color:var(--text);
+  font-family:"Hiragino Maru Gothic ProN","Yu Gothic","Meiryo",system-ui,sans-serif;
+  display:flex;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+#app{width:100%;max-width:480px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;position:relative}
+h1{margin:0;text-align:center;font-size:1.5rem;letter-spacing:.05em;color:var(--accent)}
+.hud{background:var(--panel);border-radius:16px;padding:8px 12px;display:flex;flex-direction:column;gap:6px}
+.row{display:flex;align-items:center;gap:8px}
+.score{font-size:1.5rem;font-weight:800;margin-left:auto;font-variant-numeric:tabular-nums}
+.lbl{font-size:.8rem;color:var(--sub);min-width:3.2em}
+.bar{flex:1;height:14px;border-radius:9px;background:#0001;overflow:hidden}
+.fill{height:100%;width:100%;border-radius:9px;transition:width .15s linear}
+#timef{background:linear-gradient(90deg,#4cd964,#ffd23f)}
+#timef.low{background:linear-gradient(90deg,#ff5252,#ff9f43)}
+#feverf{width:0;background:linear-gradient(90deg,#ff9f43,#ff4d6d,#c05cff)}
+#feverbtn{border:0;border-radius:12px;padding:8px 10px;font:inherit;font-weight:800;color:#fff;
+  background:#b8a3b0;cursor:not-allowed;white-space:nowrap}
+#feverbtn.ready{background:linear-gradient(135deg,#ff9f43,#ff4d6d);cursor:pointer;animation:pulse .7s infinite alternate}
+#feverbtn.on{background:linear-gradient(135deg,#c05cff,#ff4d6d)}
+@keyframes pulse{to{transform:scale(1.07)}}
+#msg{text-align:center;min-height:1.3em;font-size:.9rem;color:var(--sub);font-weight:700}
+#board{position:relative;width:min(100%,calc(100vh - 250px));min-width:260px;aspect-ratio:1;margin:0 auto;
+  background:var(--board);border-radius:18px;box-shadow:0 6px 20px #0003;overflow:hidden;padding:0;touch-action:manipulation}
+.tile{position:absolute;left:0;top:0;width:calc(100%/7);height:calc(100%/7);padding:2.5%;box-sizing:border-box;
+  transition:transform .22s ease-in}
+.in{width:100%;height:100%;border-radius:22%;display:flex;align-items:center;justify-content:center;
+  font-size:clamp(1.4rem,8.5vw,2.6rem);line-height:1;transition:transform .15s,box-shadow .15s;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.t0 .in{background:var(--c0)}.t1 .in{background:var(--c1)}.t2 .in{background:var(--c2)}
+.t3 .in{background:var(--c3)}.t4 .in{background:var(--c4)}.t5 .in{background:var(--c5)}
+.tile.sel .in{transform:scale(1.12);box-shadow:0 0 0 4px var(--accent)}
+.tile.pop .in{animation:pop .28s forwards}
+@keyframes pop{50%{transform:scale(1.3)}100%{transform:scale(0);opacity:0}}
+.target .tile:hover .in{box-shadow:0 0 0 3px #ff9f43}
+#combo{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);font-size:2.2rem;font-weight:900;color:#ff4d6d;
+  text-shadow:0 2px 0 #fff,0 0 12px #fff;pointer-events:none;opacity:0;white-space:nowrap}
+#combo.show{animation:cmb .9s ease-out}
+@keyframes cmb{0%{opacity:0;transform:translate(-50%,-30%) scale(.5)}25%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}
+  100%{opacity:0;transform:translate(-50%,-110%) scale(1)}}
+.overlay{position:absolute;inset:0;background:#0000008c;display:flex;align-items:center;justify-content:center;padding:16px;z-index:5;
+  padding-top:max(16px,env(safe-area-inset-top,0px));padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
+.card{background:var(--board);color:var(--text);border-radius:22px;padding:22px 20px;max-width:340px;width:100%;text-align:center;box-shadow:0 10px 30px #0005}
+.card h2{margin:0 0 10px;font-size:1.8rem;color:var(--accent)}
+.card ul{text-align:left;padding-left:1.2em;margin:10px 0 16px;line-height:1.7;font-size:.95rem}
+.big{font-size:2.6rem;font-weight:900;margin:6px 0 14px;font-variant-numeric:tabular-nums}
+.btn{border:0;border-radius:16px;padding:12px 28px;font:inherit;font-size:1.2rem;font-weight:800;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,#ff7aa2,#ff9f43);box-shadow:0 4px 0 #c0446b}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #c0446b}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🍓 フルーツパニック 🍇</h1>
+  <div class="hud">
+    <div class="row"><span class="lbl">スコア</span><span class="score" id="score">0</span></div>
+    <div class="row"><span class="lbl">のこり <span id="sec">60</span>秒</span><div class="bar"><div class="fill" id="timef"></div></div></div>
+    <div class="row"><span class="lbl">フィーバー</span><div class="bar"><div class="fill" id="feverf"></div></div>
+      <button id="feverbtn" type="button">🔥必殺技</button></div>
+  </div>
+  <div id="msg">となりどうしを入れ替えよう！</div>
+  <div id="board"><div id="combo"></div></div>
+
+  <div class="overlay" id="start">
+    <div class="card">
+      <h2>フルーツパニック</h2>
+      <div style="font-size:2rem">🍓🍊🍇🍈🍋🍑</div>
+      <ul>
+        <li>となり合う2つのフルーツをタップして入れ替え</li>
+        <li>同じフルーツを3つ以上そろえると消えてポイント！</li>
+        <li>連鎖（コンボ）するほど高得点</li>
+        <li>ゲージが満タンになったら「必殺技」を押して、消したい横一列をタップ！</li>
+        <li>制限時間は60秒</li>
+      </ul>
+      <button class="btn" id="startbtn" type="button">スタート</button>
+    </div>
+  </div>
+  <div class="overlay hidden" id="over">
+    <div class="card">
+      <h2>タイムアップ！</h2>
+      <div style="color:var(--sub)">最終スコア</div>
+      <div class="big" id="final">0</div>
+      <button class="btn" id="retry" type="button">もう一度あそぶ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const N=7, FR=['🍓','🍊','🍇','🍈','🍋','🍑'], TIME=60;
+const $=id=>document.getElementById(id);
+const board=$('board'), sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let g=[], uid=0, score=0, fever=0, state='ready', busy=false, targeting=false, sel=null, t0=0, timer=null;
+
+function pos(t){t.el.style.transform='translate('+t.c*100+'%,'+t.r*100+'%)';}
+function mk(type,r,c){
+  const el=document.createElement('div');
+  el.className='tile t'+type;
+  el.innerHTML='<div class="in">'+FR[type]+'</div>';
+  const t={type,r,c,el}; el._t=t; board.appendChild(el); return t;
+}
+function rnd(){return Math.floor(Math.random()*FR.length);}
+
+function build(){
+  board.querySelectorAll('.tile').forEach(e=>e.remove());
+  do{
+    board.querySelectorAll('.tile').forEach(e=>e.remove());
+    g=[];
+    for(let r=0;r<N;r++){g[r]=[];for(let c=0;c<N;c++){
+      let ty;
+      do{ty=rnd();}while(
+        (c>=2&&g[r][c-1].type===ty&&g[r][c-2].type===ty)||
+        (r>=2&&g[r-1][c].type===ty&&g[r-2][c].type===ty));
+      const t=mk(ty,r,c); g[r][c]=t; pos(t);
+    }}
+  }while(!hasMove());
+}
+
+function findMatches(){
+  const s=new Set();
+  for(let r=0;r<N;r++)for(let c=0;c<N-2;c++){
+    const a=g[r][c],b=g[r][c+1],d=g[r][c+2];
+    if(a&&b&&d&&a.type===b.type&&b.type===d.type){s.add(a);s.add(b);s.add(d);}
+  }
+  for(let c=0;c<N;c++)for(let r=0;r<N-2;r++){
+    const a=g[r][c],b=g[r+1][c],d=g[r+2][c];
+    if(a&&b&&d&&a.type===b.type&&b.type===d.type){s.add(a);s.add(b);s.add(d);}
+  }
+  return s;
+}
+function swapData(a,b){
+  g[a.r][a.c]=b; g[b.r][b.c]=a;
+  [a.r,b.r]=[b.r,a.r]; [a.c,b.c]=[b.c,a.c];
+}
+function hasMove(){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    for(const [dr,dc] of [[0,1],[1,0]]){
+      const r2=r+dr,c2=c+dc; if(r2>=N||c2>=N)continue;
+      const a=g[r][c],b=g[r2][c2];
+      swapData(a,b); const ok=findMatches().size>0; swapData(a,b);
+      if(ok)return true;
+    }
+  }
+  return false;
+}
+
+function setScore(v){score=v;$('score').textContent=v.toLocaleString();}
+function setFever(v){
+  fever=Math.max(0,Math.min(100,v));
+  $('feverf').style.width=fever+'%';
+  const b=$('feverbtn'); b.classList.toggle('ready',fever>=100);
+  if(fever<100){b.classList.remove('on');targeting=false;board.classList.remove('target');}
+}
+function say(t){$('msg').textContent=t;}
+function showCombo(t){
+  const e=$('combo'); e.textContent=t; e.classList.remove('show'); void e.offsetWidth; e.classList.add('show');
+}
+
+async function resolve(first){
+  let combo=0, set=first||findMatches();
+  while(set.size>0 && state==='play'){
+    combo++;
+    const n=set.size;
+    const pts=(n*10+Math.max(0,n-3)*10)*combo;
+    setScore(score+pts);
+    setFever(fever+n*5);
+    if(combo>=2){showCombo(combo+'連鎖！ ×'+combo);}
+    else if(n>=4){showCombo(n+'コ消し！');}
+    set.forEach(t=>{t.el.classList.add('pop');g[t.r][t.c]=null;});
+    await sleep(280);
+    set.forEach(t=>t.el.remove());
+    // gravity + refill
+    for(let c=0;c<N;c++){
+      let w=N-1;
+      for(let r=N-1;r>=0;r--){
+        const t=g[r][c];
+        if(t){ if(r!==w){g[w][c]=t;g[r][c]=null;t.r=w;pos(t);} w--; }
+      }
+      const miss=w+1;
+      for(let r=w;r>=0;r--){
+        const t=mk(rnd(),r-miss,c); t.el.style.transition='none'; pos(t);
+        g[r][c]=t; t.r=r; t._new=true;
+      }
+    }
+    void board.offsetWidth;
+    board.querySelectorAll('.tile').forEach(e=>{
+      if(e._t._new){e.style.transition='';e._t._new=false;pos(e._t);}
+    });
+    await sleep(320);
+    set=findMatches();
+  }
+  if(state==='play' && !hasMove()){
+    say('並べ替え中…'); 
+    board.querySelectorAll('.tile').forEach(e=>e.remove()); build();
+  }
+}
+
+function adjacent(a,b){return Math.abs(a.r-b.r)+Math.abs(a.c-b.c)===1;}
+function clearSel(){if(sel){sel.el.classList.remove('sel');sel=null;}}
+
+async function trySwap(a,b){
+  busy=true; clearSel();
+  swapData(a,b); pos(a); pos(b); await sleep(240);
+  const m=findMatches();
+  if(m.size===0){
+    swapData(a,b); pos(a); pos(b); await sleep(240);
+    say('そろわないよ！ほかの組み合わせをためそう');
+  }else{
+    say('いいね！');
+    await resolve(m);
+  }
+  busy=false;
+}
+
+board.addEventListener('click',async e=>{
+  if(busy||state!=='play')return;
+  const el=e.target.closest('.tile'); if(!el)return;
+  const t=el._t;
+  if(targeting){
+    targeting=false; board.classList.remove('target');
+    $('feverbtn').classList.remove('on');
+    busy=true; setFever(0); say('🔥必殺技！');
+    const row=new Set(); for(let c=0;c<N;c++)row.add(g[t.r][c]);
+    await resolve(row);
+    busy=false; say('となりどうしを入れ替えよう！');
+    return;
+  }
+  if(!sel){sel=t;el.classList.add('sel');return;}
+  if(sel===t){clearSel();return;}
+  if(adjacent(sel,t)){trySwap(sel,t);}
+  else{clearSel();sel=t;el.classList.add('sel');}
+});
+
+$('feverbtn').addEventListener('click',()=>{
+  if(busy||state!=='play'||fever<100)return;
+  targeting=!targeting; clearSel();
+  board.classList.toggle('target',targeting);
+  $('feverbtn').classList.toggle('on',targeting);
+  say(targeting?'消したい横一列のフルーツをタップ！':'となりどうしを入れ替えよう！');
+});
+
+function tick(){
+  const left=Math.max(0,TIME-(Date.now()-t0)/1000);
+  $('sec').textContent=Math.ceil(left);
+  const f=$('timef'); f.style.width=(left/TIME*100)+'%'; f.classList.toggle('low',left<=10);
+  if(left<=0)end();
+}
+function end(){
+  clearInterval(timer); state='over'; targeting=false; board.classList.remove('target');
+  setTimeout(()=>{$('final').textContent=score.toLocaleString();$('over').classList.remove('hidden');},600);
+}
+function startGame(){
+  $('start').classList.add('hidden'); $('over').classList.add('hidden');
+  state='play'; busy=false; targeting=false; sel=null;
+  setScore(0); setFever(0); say('となりどうしを入れ替えよう！');
+  build(); t0=Date.now(); clearInterval(timer); timer=setInterval(tick,100); tick();
+}
+$('startbtn').addEventListener('click',startGame);
+$('retry').addEventListener('click',startGame);
+build();
+})();
+</script>
+</body>
+</html>
